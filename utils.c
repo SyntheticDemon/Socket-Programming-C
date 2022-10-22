@@ -89,11 +89,10 @@ char **cli_tokenized(char *input)
     }
     return tokens;
 }
-struct Seller_SaleSuggestion *return_ssg_struct(char *str_input)
+void return_ssg_struct(char *str_input, struct Seller_SaleSuggestion *new_sale_suggestion)
 {
 
     char *input_string = strdup(str_input);
-    struct Seller_SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
     char *p = strtok(input_string, ",");
     int token_count = 1;
     char tokens[4][256]={0};
@@ -111,13 +110,11 @@ struct Seller_SaleSuggestion *return_ssg_struct(char *str_input)
     new_sale_suggestion->state = strdup(tokens[2]);
     new_sale_suggestion->current_client_fd=-1; //temp descriptor
     new_sale_suggestion->server_fd=-1;
-    return new_sale_suggestion;
 }
-struct SaleSuggestion *return_sg_struct(char *str_input)
+void return_sg_struct(char *str_input,struct SaleSuggestion* new_sale_suggestion)
 {
 
     char *input_string = strdup(str_input);
-    struct SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
     char *p = strtok(input_string, ",");
     int token_count = 1;
     char tokens[4][256]={0};
@@ -133,5 +130,4 @@ struct SaleSuggestion *return_sg_struct(char *str_input)
     new_sale_suggestion->sale_name = strdup(tokens[1]);
     // new_sale_suggestion->seller_name=strdup(tokens[2]);
     new_sale_suggestion->state = strdup(tokens[2]);
-    return new_sale_suggestion;
 }

@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #define LIST_COMMAND "list\n"
 #define START_NEGOTIATE "negotiate"
-#define TIMER 10
+#define TIMER 3000
 // Endpoint Serialization and Deserialization is done by csv
 // Each struct is serialized like this
 
@@ -74,7 +74,7 @@ int connectServer(int port)
     server_address.sin_addr.s_addr = inet_addr("127.0.0.1");
 
     if (connect(fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
-    { 
+    {
         printf("Error in connecting to server\n");
     }
 
@@ -128,8 +128,9 @@ int main(int argc, char const *argv[])
                 { // new message
                     memset(socket_buffer, 0, 1024);
                     recv(sock, socket_buffer, 1024, 0);
-
-                    search_and_update_received_sale_suggestions(sale_suggestions, return_sg_struct(socket_buffer));
+                    struct SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
+                    return_sg_struct(socket_buffer,new_sale_suggestion);
+                    search_and_update_received_sale_suggestions(sale_suggestions,new_sale_suggestion);
                     FD_SET(sock, &master_set);
                     if (sock > max_sd)
                         max_sd = sock;
@@ -169,7 +170,7 @@ int main(int argc, char const *argv[])
                                     {
                                         printf("Buy Request was accepted\n");
                                     }
-                                    else if (strcmp(seller_msg_buff,"Reject")==0)
+                                    else if (strcmp(seller_msg_buff, "Reject") == 0)
                                     {
                                         printf("Sell Request was accepted\n");
                                     }

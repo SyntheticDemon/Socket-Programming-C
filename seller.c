@@ -108,6 +108,7 @@ int main(int argc, char const *argv[])
     setsockopt(new_sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     bc_address.sin_family = AF_INET;
     bc_address.sin_port = htons(atoi(argv[1]));
+    // bc_address.sin_port = htons(8082);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(new_sock, (struct sockaddr *)&bc_address, sizeof(bc_address));
     char buffer[1024] = {0};
@@ -134,8 +135,9 @@ int main(int argc, char const *argv[])
                     if (!strcmpnl(tokens[0], "Send_Sale"))
                     {
                         int a = sendto(new_sock, tokens[1], strlen(tokens[1]), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
-
-                        int server_fd_index = update_add_suggestions(sent_sale_suggestions, return_ssg_struct(tokens[1]));
+                        struct Seller_SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
+                        return_ssg_struct(tokens[1], new_sale_suggestion);
+                        int server_fd_index = update_add_suggestions(sent_sale_suggestions, new_sale_suggestion);
                         int server_fd = sent_sale_suggestions[server_fd_index]->server_fd;
                         FD_SET(server_fd, &master_set);
                         if (max_sd < server_fd)
@@ -176,8 +178,9 @@ int main(int argc, char const *argv[])
                                     char message[BUFFER_WORD_LENGTH] = {0};
                                     serialize_suggestion(sent_sale_suggestions[suggestion_index], message);
                                     int a = sendto(new_sock, message, strlen(message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
-                                    //SEND UPDATE DIRECTCLY
+                                    // SEND UPDATE DIRECTCLY
                                     send(sent_sale_suggestions[suggestion_index]->current_client_fd, tokens[0], strlen(tokens[0]), 0);
+                                    sent_sale_suggestions[suggestion_index]->current_client_fd = -1;
                                     printf("Sent out latest order Status update to everyone and sent negotiation end\n");
                                 }
                             }
@@ -192,6 +195,7 @@ int main(int argc, char const *argv[])
 
                         if (sent_sale_suggestions[j]->server_fd == i)
                         {
+
                             // new client on fd
                             // Setup alaram for 60 seconds inactivity here
                             int current_client_fd = sent_sale_suggestions[j]->current_client_fd;
@@ -199,8 +203,9 @@ int main(int argc, char const *argv[])
                             int *new_current_client_fd = malloc(sizeof(int));
                             if ((!strcmpnl(sent_sale_suggestions[j]->state, "Open\n")) & current_client_fd == -1)
                             {
+                                printf("Negotiation Initializing\n");
                                 int new_fd = acceptClient(sent_sale_suggestions[j]->server_fd);
-                                printf("Initial Negotiation beginning with consumer fd %d on port %d\n", current_client_fd, sent_sale_suggestions[j]->port);
+                                printf("Initial Negotiation beginning with consumer fd %d on port %d\n", new_fd, sent_sale_suggestions[j]->port);
                                 sent_sale_suggestions[j]->current_client_fd = current_client_fd;
                                 strcpy(sent_sale_suggestions[j]->state, "Negotiation\n");
                                 printf("%s\n", sent_sale_suggestions[j]->state);
