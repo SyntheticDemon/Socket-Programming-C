@@ -4,17 +4,26 @@ Simple Socket Programming done in C
 #entry points
 ```
 ./buyer <port>
-./seller <port>
 ```
 
-#Seller
+```
+./seller <port>
+
+```
+
+## Seller
 Setup new Sale using
 States can be of 3 types for this to work correctly -> Open,Negotiation,Closed
+
 ```Send_Sale <port>,<Sale_Name>,<Initial_State>```
+
 ```Accept <Sale_Name>```
+
 ```Refuse <Sale_Name>```
 
-#Buyer
+## Buyer
 See all sale suggestions
+
 ``` list ``` 
+
 ``` negotiate <port> <message> ```
