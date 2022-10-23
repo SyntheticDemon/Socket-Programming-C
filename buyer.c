@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #define LIST_COMMAND "list"
 #define START_NEGOTIATE "negotiate"
-#define TIMER 5
+#define TIMER 60
 // Endpoint Serialization and Deserialization is done by csv
 // Each struct is serialized like this
 
@@ -125,7 +125,7 @@ int main(int argc, char const *argv[])
 
     bc_address.sin_family = AF_INET;
     // bc_address.sin_port = htons(atoi(argv[1]));
-    bc_address.sin_port = htons(8082);
+    bc_address.sin_port = htons(atoi(argv[1]));
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     FD_ZERO(&master_set);
     max_sd = sock;

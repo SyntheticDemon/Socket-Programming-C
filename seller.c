@@ -104,7 +104,7 @@ int main(int argc, char const *argv[])
     setsockopt(new_sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
     setsockopt(new_sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     bc_address.sin_family = AF_INET;
-    bc_address.sin_port = htons(8082);
+    bc_address.sin_port = htons(atoi(argv[1]));
     // bc_address.sin_port = htons(8082);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(new_sock, (struct sockaddr *)&bc_address, sizeof(bc_address));
