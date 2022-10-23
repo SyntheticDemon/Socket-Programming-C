@@ -255,7 +255,11 @@ int main(int argc, char const *argv[])
                             bytes_received = recv(i, bw, 1024, 0);
                             if (bytes_received == 0)
                             { // End of file from consumer
-                                printf("client fd : %d closed\n", i);
+                                printf("client fd : %d Closed it's connection abruptly in negotiation\n", i);
+                                sent_sale_suggestions[z]->state=OPEN;
+                                char message[BUFFER_WORD_LENGTH] = {0};
+                                serialize_suggestion(sent_sale_suggestions[z], message);
+                                int a = sendto(new_sock, message, strlen(message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                                 close(i);
                                 FD_CLR(i, &master_set);
                                 sent_sale_suggestions[z]->current_client_fd = -1; // no active client fd
