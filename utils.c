@@ -8,6 +8,11 @@
 #define BUFFER_WORD_LENGTH 256
 #define MAX_BUFFER_WORDS 500
 #define NULL ((void *)0)
+#define OPEN "Open"
+#define CLOSED "Closed"
+#define IN_NEGOTIATION "Negotiation"
+#define SEND_SALE "Send_Sale"
+
 int itoa(int value, char *ptr)
 {
     int count = 0, temp;
@@ -60,6 +65,7 @@ struct SaleSuggestion
     // char* seller_name;
     char* sale_name;
     char* state;
+    int seller_fd;
 };
 
 struct Seller_SaleSuggestion
@@ -107,7 +113,7 @@ void return_ssg_struct(char *str_input, struct Seller_SaleSuggestion *new_sale_s
     new_sale_suggestion->port = atoi(tokens[0]);
     new_sale_suggestion->sale_name = strdup(tokens[1]);
     // new_sale_suggestion->seller_name = strdup(tokens[2]);
-    new_sale_suggestion->state = strdup(tokens[2]);
+    new_sale_suggestion->state = OPEN;
     new_sale_suggestion->current_client_fd=-1; //temp descriptor
     new_sale_suggestion->server_fd=-1;
 }
@@ -130,4 +136,5 @@ void return_sg_struct(char *str_input,struct SaleSuggestion* new_sale_suggestion
     new_sale_suggestion->sale_name = strdup(tokens[1]);
     // new_sale_suggestion->seller_name=strdup(tokens[2]);
     new_sale_suggestion->state = strdup(tokens[2]);
+    new_sale_suggestion->seller_fd=-1;
 }

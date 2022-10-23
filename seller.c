@@ -11,11 +11,8 @@
 #include "utils.c"
 #include <stdio.h>
 #include "string.h"
-#define BROADCAST_SALE "BROADCAST_SALE" // if sale with the same name goes out (it's state will be updated with the buyers)
-#define OPEN "Open\n"
-#define CLOSED "Closed\n"
-#define IN_NEGOTIATION "Negotiation\n"
-
+#define ACCEPT "Accept"
+#define REJECT "Reject"
 int setupServer(int port)
 {
     struct sockaddr_in address;
@@ -107,7 +104,7 @@ int main(int argc, char const *argv[])
     setsockopt(new_sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
     setsockopt(new_sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     bc_address.sin_family = AF_INET;
-    bc_address.sin_port = htons(atoi(argv[1]));
+    bc_address.sin_port = htons(8082);
     // bc_address.sin_port = htons(8082);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     bind(new_sock, (struct sockaddr *)&bc_address, sizeof(bc_address));
@@ -132,11 +129,17 @@ int main(int argc, char const *argv[])
                     memset(buffer, 0, 1024);
                     read(0, buffer, 1024);
                     char **tokens = cli_tokenized(buffer);
-                    if (!strcmpnl(tokens[0], "Send_Sale"))
+                    if (!strcmpnl(tokens[0], SEND_SALE))
                     {
-                        int a = sendto(new_sock, tokens[1], strlen(tokens[1]), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
+                        //Send Comma Seperated Value
+                        char sending_message[BUFFER_WORD_LENGTH]={0};
+                        strcat(sending_message,tokens[1]);
+                        strcat(sending_message,",");
+                        strcat(sending_message,OPEN);
+
+                        int a = sendto(new_sock, sending_message, strlen(sending_message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                         struct Seller_SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
-                        return_ssg_struct(tokens[1], new_sale_suggestion);
+                        return_ssg_struct(sending_message, new_sale_suggestion);
                         int server_fd_index = update_add_suggestions(sent_sale_suggestions, new_sale_suggestion);
                         int server_fd = sent_sale_suggestions[server_fd_index]->server_fd;
                         FD_SET(server_fd, &master_set);
@@ -145,7 +148,7 @@ int main(int argc, char const *argv[])
                             max_sd = server_fd;
                         }
                     }
-                    if (strcmp(tokens[0], "Accept") == 0 | strcmp(tokens[0], "Reject") == 0)
+                    if (strcmp(tokens[0], ACCEPT) == 0 | strcmp(tokens[0],REJECT) == 0)
                     {
                         int suggestion_index = search_for_suggestion(sent_sale_suggestions, tokens[1]);
                         if (suggestion_index == -1)
@@ -161,19 +164,19 @@ int main(int argc, char const *argv[])
                             }
                             else
                             {
-                                if (strcmpnl(sent_sale_suggestions[suggestion_index]->state, "Negotiation") != 0)
+                                if (strcmpnl(sent_sale_suggestions[suggestion_index]->state, IN_NEGOTIATION) != 0)
                                 {
                                     printf("The order is not in negotiation mode\n");
                                 }
                                 else
                                 {
-                                    if (strcmp(tokens[0], "Accept") == 0)
+                                    if (strcmp(tokens[0],ACCEPT) == 0)
                                     {
-                                        sent_sale_suggestions[suggestion_index]->state = "Closed\n";
+                                        sent_sale_suggestions[suggestion_index]->state = CLOSED;
                                     }
                                     else
                                     {
-                                        sent_sale_suggestions[suggestion_index]->state = "Open\n";
+                                        sent_sale_suggestions[suggestion_index]->state = OPEN;
                                     }
                                     char message[BUFFER_WORD_LENGTH] = {0};
                                     serialize_suggestion(sent_sale_suggestions[suggestion_index], message);
@@ -201,21 +204,18 @@ int main(int argc, char const *argv[])
                             int current_client_fd = sent_sale_suggestions[j]->current_client_fd;
                             int *initial_opening = malloc(sizeof(int));
                             int *new_current_client_fd = malloc(sizeof(int));
-                            if ((!strcmpnl(sent_sale_suggestions[j]->state, "Open\n")) & current_client_fd == -1)
+                            if ((!strcmpnl(sent_sale_suggestions[j]->state, OPEN)) & current_client_fd == -1)
                             {
                                 printf("Negotiation Initializing\n");
                                 int new_fd = acceptClient(sent_sale_suggestions[j]->server_fd);
                                 printf("Initial Negotiation beginning with consumer fd %d on port %d\n", new_fd, sent_sale_suggestions[j]->port);
+                                char message[BUFFER_WORD_LENGTH] = {0};
+                                sent_sale_suggestions[j]->state=IN_NEGOTIATION;
+                                serialize_suggestion(sent_sale_suggestions[j], message);
+                                int a = sendto(new_sock, message, strlen(message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                                 sent_sale_suggestions[j]->current_client_fd = current_client_fd;
-                                strcpy(sent_sale_suggestions[j]->state, "Negotiation\n");
-                                printf("%s\n", sent_sale_suggestions[j]->state);
-                                // Push latest state of the negotiation
                                 *initial_opening = 1;
                                 *new_current_client_fd = new_fd;
-                                // TODO Decide the fate of the negotiation
-                                // TODO On success log to file update everyone (close the server on the port)
-                                // TOOD ON failure change order status and update everyone
-                                // TOOD Setup live chat
                             }
 
                             if (*initial_opening)

@@ -12,11 +12,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#define LIST_COMMAND "list\n"
+#define LIST_COMMAND "list"
 #define START_NEGOTIATE "negotiate"
-#define TIMER 3000
+#define TIMER 60
 // Endpoint Serialization and Deserialization is done by csv
 // Each struct is serialized like this
+
+int close_connection = 0;
+
+int current_client_after_neg_fd=-1;
 
 int search_and_update_received_sale_suggestions(struct SaleSuggestion **sale_suggestions,
                                                 struct SaleSuggestion *new_suggestion)
@@ -62,6 +66,23 @@ void **print_current_announcments(struct SaleSuggestion **sale_suggestions)
     }
 }
 
+int search_for_suggestion(struct SaleSuggestion **sale_suggestions,
+                          int port)
+{
+
+    for (int i = 0; i < MAX_ANNOUNCMENTS; i++)
+    {
+
+        if (sale_suggestions[i] != NULL)
+        {
+            if (sale_suggestions[i]->port == port)
+            {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
 int connectServer(int port)
 {
     int fd;
@@ -82,6 +103,7 @@ int connectServer(int port)
 }
 void alarm_handler(int sig)
 {
+    close_connection = 1;
     printf("No Response Received cutting the connection out\n");
 }
 
@@ -102,7 +124,8 @@ int main(int argc, char const *argv[])
     setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
     bc_address.sin_family = AF_INET;
-    bc_address.sin_port = htons(atoi(argv[1]));
+    // bc_address.sin_port = htons(atoi(argv[1]));
+    bc_address.sin_port = htons(8082);
     bc_address.sin_addr.s_addr = inet_addr("255.255.255.255");
     FD_ZERO(&master_set);
     max_sd = sock;
@@ -121,7 +144,7 @@ int main(int argc, char const *argv[])
         for (int i = 0; i <= max_sd; i++)
         {
 
-            if (FD_ISSET(i, &working_set))
+            if (FD_ISSET(i, &working_set) | i==current_client_after_neg_fd)
             {
 
                 if (i == sock)
@@ -129,8 +152,8 @@ int main(int argc, char const *argv[])
                     memset(socket_buffer, 0, 1024);
                     recv(sock, socket_buffer, 1024, 0);
                     struct SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
-                    return_sg_struct(socket_buffer,new_sale_suggestion);
-                    search_and_update_received_sale_suggestions(sale_suggestions,new_sale_suggestion);
+                    return_sg_struct(socket_buffer, new_sale_suggestion);
+                    search_and_update_received_sale_suggestions(sale_suggestions, new_sale_suggestion);
                     FD_SET(sock, &master_set);
                     if (sock > max_sd)
                         max_sd = sock;
@@ -155,14 +178,49 @@ int main(int argc, char const *argv[])
                                 server_fd = connectServer(seller_port);
                                 printf("Sending Negotiation to seller on port %d and server_fd %d \n", seller_port, server_fd);
                                 send(server_fd, tokens[2], strlen(tokens[2]), 0); // tokens [2] is the buyer message
-                                char seller_msg_buff[BUFFER_WORD_LENGTH];
-                                signal(SIGALRM, alarm_handler);
-                                alarm(TIMER);
+                                FD_SET(server_fd, &master_set);
+                                if (server_fd > max_sd)
+                                {
+                                    max_sd = server_fd;
+                                }
+                                int returned_index = search_for_suggestion(sale_suggestions, seller_port);
+                                sale_suggestions[returned_index]->seller_fd = server_fd;
+                                current_client_after_neg_fd=server_fd;
+                                
+                            }
+                        }
+
+                        else
+                        {
+                            printf("You are already negotiating\n");
+                        }
+                    }
+                }
+                for (int t = 0; t < MAX_ANNOUNCMENTS; t++)
+                {
+                    if (sale_suggestions[t] != NULL)
+                    {
+                        
+                        if (sale_suggestions[t]->seller_fd == i)
+                        {
+                            char seller_msg_buff[BUFFER_WORD_LENGTH];
+                            signal(SIGALRM, alarm_handler);
+                            alarm(TIMER);
+                            if (close_connection == 1)
+                            {
+                                close(i);
+                                FD_CLR(server_fd, &master_set);
+                                *in_negotiation = 0;
+                            }
+                            else
+                            {
                                 int bytes_received = recv(server_fd, seller_msg_buff, BUFFER_WORD_LENGTH, 0);
                                 if (bytes_received == 0)
                                 {
                                     *in_negotiation = 0;
                                     close(server_fd);
+                                    FD_CLR(i, &master_set);
+                                    alarm(0);
                                 }
                                 else
                                 {
@@ -177,12 +235,9 @@ int main(int argc, char const *argv[])
                                     alarm(0);
                                     *in_negotiation = 0;
                                     close(server_fd);
+                                    FD_CLR(i, &master_set);
                                 }
                             }
-                        }
-                        else
-                        {
-                            printf("You are already negotiating\n");
                         }
                     }
                 }
