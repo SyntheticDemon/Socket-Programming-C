@@ -46,7 +46,7 @@ int update_add_suggestions(struct Seller_SaleSuggestion **sale_suggestions,
                            struct Seller_SaleSuggestion *new_suggestion)
 {
     // Returns a file descriptor if it sets up a server , otherwise returns -1
-    //  returns -1 if not foudn ()
+    //  returns -1 if not foudn (
     for (int i = 0; i < MAX_ANNOUNCMENTS; i++)
     {
         if (sale_suggestions[i] == NULL)
@@ -131,11 +131,11 @@ int main(int argc, char const *argv[])
                     char **tokens = cli_tokenized(buffer);
                     if (!strcmpnl(tokens[0], SEND_SALE))
                     {
-                        //Send Comma Seperated Value
-                        char sending_message[BUFFER_WORD_LENGTH]={0};
-                        strcat(sending_message,tokens[1]);
-                        strcat(sending_message,",");
-                        strcat(sending_message,OPEN);
+                        // Send Comma Seperated Value
+                        char sending_message[BUFFER_WORD_LENGTH] = {0};
+                        strcat(sending_message, tokens[1]);
+                        strcat(sending_message, ",");
+                        strcat(sending_message, OPEN);
 
                         int a = sendto(new_sock, sending_message, strlen(sending_message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                         struct Seller_SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
@@ -148,7 +148,7 @@ int main(int argc, char const *argv[])
                             max_sd = server_fd;
                         }
                     }
-                    if (strcmp(tokens[0], ACCEPT) == 0 | strcmp(tokens[0],REJECT) == 0)
+                    if (strcmp(tokens[0], ACCEPT) == 0 | strcmp(tokens[0], REJECT) == 0)
                     {
                         int suggestion_index = search_for_suggestion(sent_sale_suggestions, tokens[1]);
                         if (suggestion_index == -1)
@@ -170,9 +170,19 @@ int main(int argc, char const *argv[])
                                 }
                                 else
                                 {
-                                    if (strcmp(tokens[0],ACCEPT) == 0)
+                                    if (strcmp(tokens[0], ACCEPT) == 0)
                                     {
                                         sent_sale_suggestions[suggestion_index]->state = CLOSED;
+
+                                        int fd = open(sent_sale_suggestions[suggestion_index]->sale_name, O_WRONLY | O_CREAT | O_TRUNC | O_APPEND, 0644);
+
+                                        write(fd, sent_sale_suggestions[suggestion_index]->last_buyer_message, strlen(sent_sale_suggestions[suggestion_index]->last_buyer_message));
+                                        write(fd, "==========\n", strlen("==========\n"));
+                                        write(fd, sent_sale_suggestions[suggestion_index]->sale_name,
+                                         strlen(sent_sale_suggestions[suggestion_index]->sale_name));
+                                        write(fd, "==========\n", strlen("==========\n"));
+
+                                        close(fd);
                                     }
                                     else
                                     {
@@ -210,7 +220,7 @@ int main(int argc, char const *argv[])
                                 int new_fd = acceptClient(sent_sale_suggestions[j]->server_fd);
                                 printf("Initial Negotiation beginning with consumer fd %d on port %d\n", new_fd, sent_sale_suggestions[j]->port);
                                 char message[BUFFER_WORD_LENGTH] = {0};
-                                sent_sale_suggestions[j]->state=IN_NEGOTIATION;
+                                sent_sale_suggestions[j]->state = IN_NEGOTIATION;
                                 serialize_suggestion(sent_sale_suggestions[j], message);
                                 int a = sendto(new_sock, message, strlen(message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                                 sent_sale_suggestions[j]->current_client_fd = current_client_fd;
@@ -256,7 +266,7 @@ int main(int argc, char const *argv[])
                             if (bytes_received == 0)
                             { // End of file from consumer
                                 printf("client fd : %d Closed it's connection abruptly in negotiation\n", i);
-                                sent_sale_suggestions[z]->state=OPEN;
+                                sent_sale_suggestions[z]->state = OPEN;
                                 char message[BUFFER_WORD_LENGTH] = {0};
                                 serialize_suggestion(sent_sale_suggestions[z], message);
                                 int a = sendto(new_sock, message, strlen(message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
@@ -267,6 +277,7 @@ int main(int argc, char const *argv[])
                             }
 
                             printf("A client message discovered with fd %d message was :%s\n", sent_sale_suggestions[z]->current_client_fd, bw);
+                            sent_sale_suggestions[z]->last_buyer_message = strdup(bw);
                             // TODO Log better here
                         }
                     }

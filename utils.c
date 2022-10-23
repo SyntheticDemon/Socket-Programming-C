@@ -76,6 +76,7 @@ struct Seller_SaleSuggestion
     // char* seller_name;
     char* sale_name;
     char* state;
+    char * last_buyer_message;
 };
 char **cli_tokenized(char *input)
 {
