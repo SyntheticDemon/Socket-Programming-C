@@ -3,11 +3,11 @@ Simple Socket Programming done in C
 -> make ()
 #entry points
 ```
-./buyer <port>
+./buyer <port> <Chosen_Name>
 ```
 
 ```
-./seller <port>
+./seller <port> <Chosen_Name>
 
 ```
 
@@ -19,11 +19,13 @@ States can be of 3 types for this to work correctly -> Open,Negotiation,Closed
 
 ```Accept <Sale_Name>```
 
-```Refuse <Sale_Name>```
+```Reject <Sale_Name>```
 
 ## Buyer
 See all sale suggestions
 
-``` list ``` 
+``` list ```  
 
+
+Negotiate with seller 
 ``` negotiate <port> <message> ```

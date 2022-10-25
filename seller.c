@@ -13,6 +13,7 @@
 #include "string.h"
 #define ACCEPT "Accept"
 #define REJECT "Reject"
+
 int setupServer(int port)
 {
     struct sockaddr_in address;
@@ -51,14 +52,20 @@ int update_add_suggestions(struct Seller_SaleSuggestion **sale_suggestions,
     {
         if (sale_suggestions[i] == NULL)
         {
-            printf("New Port: %d\n", new_suggestion->port);
+            char temp[BUFFER_WORD_LENGTH];
+            sprintf(temp,"New Port: %d\n", new_suggestion->port);
+            write(0,temp,strlen(temp));
             new_suggestion->server_fd = setupServer(new_suggestion->port);
             sale_suggestions[i] = new_suggestion;
             return i;
         }
         if (sale_suggestions[i]->port == new_suggestion->port)
         {
-            printf("Update With Port :%d\n", new_suggestion->port);
+            
+            char temp[BUFFER_WORD_LENGTH];
+            sprintf(temp,"Update With Port :%d\n", new_suggestion->port);
+            write(0, temp, strlen(temp));
+
             sale_suggestions[i] = new_suggestion;
             return i;
         }
@@ -91,14 +98,17 @@ void serialize_suggestion(struct Seller_SaleSuggestion *sale_suggestion, char *m
     strcat(message, ",");
     strcat(message, sale_suggestion->sale_name);
     strcat(message, ",");
-    // strcat(message,sale_suggestion->seller_name);
     strcat(message, sale_suggestion->state);
+    strcat(message,",");
+    strcat(message,sale_suggestion->seller_name);
 }
 int main(int argc, char const *argv[])
 {
+    //Seller name is taken as the second argument of argv
     struct sockaddr_in bc_address;
     struct Seller_SaleSuggestion *sent_sale_suggestions[MAX_ANNOUNCMENTS] = {0};
-
+    char seller_name[BUFFER_WORD_LENGTH];
+    strcpy(seller_name,argv[2]);
     int broadcast = 1, opt = 1;
     int new_sock = socket(AF_INET, SOCK_DGRAM, 0);
     setsockopt(new_sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
@@ -136,10 +146,11 @@ int main(int argc, char const *argv[])
                         strcat(sending_message, tokens[1]);
                         strcat(sending_message, ",");
                         strcat(sending_message, OPEN);
-
+                        strcat(sending_message,",");
+                        strcat(sending_message,seller_name);
                         int a = sendto(new_sock, sending_message, strlen(sending_message), 0, (struct sockaddr *)&bc_address, sizeof(bc_address));
                         struct Seller_SaleSuggestion *new_sale_suggestion = malloc(sizeof(new_sale_suggestion));
-                        return_ssg_struct(sending_message, new_sale_suggestion);
+                        return_ssg_struct(sending_message, new_sale_suggestion,seller_name);
                         int server_fd_index = update_add_suggestions(sent_sale_suggestions, new_sale_suggestion);
                         int server_fd = sent_sale_suggestions[server_fd_index]->server_fd;
                         FD_SET(server_fd, &master_set);
@@ -153,20 +164,21 @@ int main(int argc, char const *argv[])
                         int suggestion_index = search_for_suggestion(sent_sale_suggestions, tokens[1]);
                         if (suggestion_index == -1)
                         {
-                            printf("Sale was not found with sale name:Typo?\n");
+                            writeto_stdout_vanilla("%s","Sale was not found with sale name:Typo?\n");
                         }
                         else
                         {
                             // Send update
                             if (sent_sale_suggestions[suggestion_index]->current_client_fd == -1)
                             {
-                                printf("No one is even negotiating to accept\n");
+                                writeto_stdout_vanilla("%s","No one is even negotiating to accept\n");
                             }
                             else
                             {
                                 if (strcmpnl(sent_sale_suggestions[suggestion_index]->state, IN_NEGOTIATION) != 0)
                                 {
-                                    printf("The order is not in negotiation mode\n");
+
+                                    writeto_stdout_vanilla("%s", "The order is not in negotiation mode\n");
                                 }
                                 else
                                 {

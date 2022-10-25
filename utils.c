@@ -3,8 +3,11 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <stdio.h>
+#include <unistd.h>
+
 #define CONSTANT_SIZE_STR 310
-#define MAX_ANNOUNCMENTS 3
+#define MAX_ANNOUNCMENTS 500
+#define MAX_ANNOUNCMENTS_TO_KEEP 10000
 #define BUFFER_WORD_LENGTH 256
 #define MAX_BUFFER_WORDS 500
 #define NULL ((void *)0)
@@ -59,12 +62,21 @@ int strcmpnl(const char *s1, const char *s2)
 
     return 0;
 }
+
+void writeto_stdout_vanilla(char *format, char *output)
+{
+    char temp[BUFFER_WORD_LENGTH];
+    sprintf(temp, format, output);
+    write(0, temp, strlen(temp));
+}
+
 struct SaleSuggestion
 {
     int port;
     // char* seller_name;
     char* sale_name;
     char* state;
+    char* seller_name;
     int seller_fd;
 };
 
@@ -73,7 +85,7 @@ struct Seller_SaleSuggestion
     int port;
     int server_fd;
     int current_client_fd;
-    // char* seller_name;
+    char* seller_name;
     char* sale_name;
     char* state;
     char * last_buyer_message;
@@ -96,9 +108,8 @@ char **cli_tokenized(char *input)
     }
     return tokens;
 }
-void return_ssg_struct(char *str_input, struct Seller_SaleSuggestion *new_sale_suggestion)
+void return_ssg_struct(char *str_input, struct Seller_SaleSuggestion *new_sale_suggestion,char * seller_name)
 {
-
     char *input_string = strdup(str_input);
     char *p = strtok(input_string, ",");
     int token_count = 1;
@@ -117,6 +128,7 @@ void return_ssg_struct(char *str_input, struct Seller_SaleSuggestion *new_sale_s
     new_sale_suggestion->state = OPEN;
     new_sale_suggestion->current_client_fd=-1; //temp descriptor
     new_sale_suggestion->server_fd=-1;
+    new_sale_suggestion->seller_name=seller_name;
 }
 void return_sg_struct(char *str_input,struct SaleSuggestion* new_sale_suggestion)
 {
@@ -135,7 +147,7 @@ void return_sg_struct(char *str_input,struct SaleSuggestion* new_sale_suggestion
     }
     new_sale_suggestion->port = atoi(tokens[0]);
     new_sale_suggestion->sale_name = strdup(tokens[1]);
-    // new_sale_suggestion->seller_name=strdup(tokens[2]);
+    new_sale_suggestion->seller_name=strdup(tokens[3]);
     new_sale_suggestion->state = strdup(tokens[2]);
     new_sale_suggestion->seller_fd=-1;
 }

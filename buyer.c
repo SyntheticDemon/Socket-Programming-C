@@ -27,7 +27,7 @@ int search_and_update_received_sale_suggestions(struct SaleSuggestion **sale_sug
 {
 
     // returns -1 if not foudn ()
-    for (int i = 0; i < MAX_ANNOUNCMENTS; i++)
+    for (int i = 0; i < MAX_ANNOUNCMENTS_TO_KEEP; i++)
     {
         if (sale_suggestions[i] == NULL)
         {
@@ -36,7 +36,10 @@ int search_and_update_received_sale_suggestions(struct SaleSuggestion **sale_sug
         }
         if (!strcmpnl(sale_suggestions[i]->sale_name, new_suggestion->sale_name))
         {
-            printf("Sale Update Received Seller name :%s\n", sale_suggestions[i]->sale_name);
+
+            char temp[BUFFER_WORD_LENGTH];
+            sprintf(temp, "Sale Update Received Seller name :%s\n", sale_suggestions[i]->sale_name);
+            write(0, temp, strlen(temp));
             sale_suggestions[i] = new_suggestion;
             return i;
         }
@@ -45,21 +48,20 @@ int search_and_update_received_sale_suggestions(struct SaleSuggestion **sale_sug
 }
 void **print_current_announcments(struct SaleSuggestion **sale_suggestions)
 {
-    for (int i = 0; i < MAX_ANNOUNCMENTS; i++)
+    for (int i = 0; i < MAX_ANNOUNCMENTS_TO_KEEP; i++)
     {
         if (sale_suggestions[i] != NULL)
         {
-            printf("Sale:\nPort: %d\n", sale_suggestions[i]->port);
-            // printf("Seller Name %s \n", sale_suggestions[i]->seller_name);5,PP
-            printf("Sale Name %s \n", sale_suggestions[i]->sale_name);
-            printf("Status %s \n", sale_suggestions[i]->state);
-            printf("%s\n", "========");
+            char temp[BUFFER_WORD_LENGTH];
+            sprintf(temp, "Sale Descrption\n Seller Name: %s,Port:%d,Sale Name:%s,Status:%s ======\n",
+                    sale_suggestions[i]->seller_name,sale_suggestions[i]->port, sale_suggestions[i]->sale_name, sale_suggestions[i]->state);
+            write(0, temp, strlen(temp));
         }
         else
         {
             if (i == 0)
             {
-                printf("%s\n", "No sales");
+                writeto_stdout_vanilla("%s\n", "No sales");
             }
             break;
         }
@@ -70,7 +72,7 @@ int search_for_suggestion(struct SaleSuggestion **sale_suggestions,
                           int port)
 {
 
-    for (int i = 0; i < MAX_ANNOUNCMENTS; i++)
+    for (int i = 0; i < MAX_ANNOUNCMENTS_TO_KEEP; i++)
     {
 
         if (sale_suggestions[i] != NULL)
@@ -96,7 +98,7 @@ int connectServer(int port)
 
     if (connect(fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
     {
-        printf("Error in connecting to server\n");
+        write(fd, "Error in connecting to server\n", strlen("Error in connecting to server\n"));
     }
 
     return fd;
@@ -104,18 +106,24 @@ int connectServer(int port)
 void alarm_handler(int sig)
 {
     shutdown(current_client_after_neg_fd, SHUT_RDWR);
-    printf("No Response Received cutting the connection out\n");
+    writeto_stdout_vanilla("%s", "No Response Received cutting the connection out\n");
 }
 
 int main(int argc, char const *argv[])
 {
     int sock, broadcast = 1, opt = 1;
+    
     char socket_buffer[1024] = {0};
     char terminal_buffer[1024] = {0};
-
+    
+    char buyer_name[BUFFER_WORD_LENGTH];
+    strcpy(buyer_name,argv[2]);
+    
     int announcments_count_up_until_now;
-    struct SaleSuggestion *sale_suggestions[MAX_ANNOUNCMENTS] = {0};
+    
+    struct SaleSuggestion *sale_suggestions[MAX_ANNOUNCMENTS_TO_KEEP] = {0};
     struct sockaddr_in bc_address;
+    
     int server_fd, max_sd;
     fd_set master_set, working_set;
 
@@ -157,7 +165,9 @@ int main(int argc, char const *argv[])
                     FD_SET(sock, &master_set);
                     if (sock > max_sd)
                         max_sd = sock;
-                    printf("New Message Received State might be updated fd: %d \n", sock);
+                    char temp[BUFFER_WORD_LENGTH];
+                    sprintf(temp, "New Message Received State might be updated fd: %d \n", sock);
+                    write(0, temp, strlen(temp));
                 }
                 if (i == 0)
                 { // stdin
@@ -176,8 +186,15 @@ int main(int argc, char const *argv[])
                             {
                                 int seller_port = atoi(tokens[1]);
                                 server_fd = connectServer(seller_port);
-                                printf("Sending Negotiation to seller on port %d and server_fd %d \n", seller_port, server_fd);
-                                send(server_fd, tokens[2], strlen(tokens[2]), 0); // tokens [2] is the buyer message
+                                char temp[BUFFER_WORD_LENGTH];
+                                char negotiation_message[BUFFER_WORD_LENGTH]={0};
+                                strcat(negotiation_message, "Name: ");
+                                strcat(negotiation_message, buyer_name);
+                                strcat(negotiation_message, " Negotiation Message:");
+                                strcat(negotiation_message, tokens[2]);   
+                                sprintf(temp, "Sending Negotiation to seller on port %d and server_fd %d \n", seller_port, server_fd);
+                                write(0, temp, strlen(temp));
+                                send(server_fd, negotiation_message, strlen(negotiation_message), 0); // tokens [2] is the buyer message
                                 FD_SET(server_fd, &master_set);
                                 if (server_fd > max_sd)
                                 {
@@ -191,11 +208,12 @@ int main(int argc, char const *argv[])
 
                         else
                         {
-                            printf("You are already negotiating\n");
+                            char temp[BUFFER_WORD_LENGTH];
+                            writeto_stdout_vanilla("%s", "You are already negotiating\n");
                         }
                     }
                 }
-                for (int t = 0; t < MAX_ANNOUNCMENTS; t++)
+                for (int t = 0; t < MAX_ANNOUNCMENTS_TO_KEEP; t++)
                 {
                     if (sale_suggestions[t] != NULL)
                     {
@@ -216,13 +234,16 @@ int main(int argc, char const *argv[])
                             }
                             else
                             {
+                                char temp[BUFFER_WORD_LENGTH];
                                 if (strcmpnl(seller_msg_buff, "Accept") == 0)
                                 {
-                                    printf("Buy Request was Accepted\n");
+                                    sprintf(temp, "Buy Request was Accepted\n");
+                                    write(0, temp, strlen(temp));
                                 }
                                 else if (strcmp(seller_msg_buff, "Reject") == 0)
                                 {
-                                    printf("Buy Request was Rejected\n");
+                                    sprintf(temp, "Buy Request was Rejected\n");
+                                    write(0, temp, strlen(temp));
                                 }
                                 alarm(0);
                                 *in_negotiation = 0;
